@@ -1,6 +1,7 @@
 # Libaries
 import tensorflow
 from tensorflow.keras.datasets import mnist
+
 def load_and_preprocess_mnist(n_samples=None, binarize=True, flatten=True):
     """ Load MNIST dataset and preprocess it
 
