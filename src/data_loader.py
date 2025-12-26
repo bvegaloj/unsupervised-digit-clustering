@@ -3,7 +3,7 @@ import tensorflow
 from tensorflow.keras.datasets import mnist
 
 def load_and_preprocess_mnist(n_samples=None, binarize=True, flatten=True):
-    """ Load MNIST dataset and preprocess it
+    """Load MNIST dataset and preprocess it
 
     Args:
         n_samples (int, optional): Number of samples to load. Defaults uses 60,000.
@@ -18,15 +18,24 @@ def load_and_preprocess_mnist(n_samples=None, binarize=True, flatten=True):
     """
     
     (X_train, y_train), (X_test, y_test) = mnist.load_data()
-    X_train, y_train = X_train[:n_samples], y_train[:n_samples]
     
+    # Subset training data if requested
+    if n_samples is not None:
+        X_train, y_train = X_train[:n_samples], y_train[:n_samples]
+    
+    # Apply same preprocessing to both train and test sets
     if flatten:
-        X_train = X_train.reshape(n_samples, -1)    # Flatten images to 784D vectors
-        X_train = X_train / 255                     # Normalize pixel values to [0, 1]
+        X_train = X_train.reshape(X_train.shape[0], -1) / 255  # Flatten and normalize
+        X_test = X_test.reshape(X_test.shape[0], -1) / 255     # Flatten and normalize
+    else:
+        X_train = X_train / 255  # Just normalize
+        X_test = X_test / 255    # Just normalize
     
-    # Binarize data for use in Bernoulli
+    # Binarize if requested
     if binarize:
         X_train[X_train < 0.5] = 0
         X_train[X_train > 0.5] = 1
+        X_test[X_test < 0.5] = 0
+        X_test[X_test > 0.5] = 1
         
     return X_train, y_train, X_test, y_test
