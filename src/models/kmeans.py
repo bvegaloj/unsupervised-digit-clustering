@@ -42,11 +42,18 @@ class KMeans:
         if self.random_state is not None:
             np.random.seed(self.random_state)
         
-        n_samples = X.shape[0]
+        n_samples, n_features = X.shape
         
         # Initialize centers by random selection
+        # Handle case where n_clusters > n_samples
+        n_init_clusters = min(self.n_clusters, n_samples)
         random_indices = np.random.permutation(n_samples)
-        self.cluster_centers_ = X[random_indices[:self.n_clusters]].copy()
+        self.cluster_centers_ = X[random_indices[:n_init_clusters]].copy()
+        
+        # If we need more clusters than samples, duplicate some randomly
+        if n_init_clusters < self.n_clusters:
+            extra_centers = X[np.random.choice(n_samples, self.n_clusters - n_init_clusters)]
+            self.cluster_centers_ = np.vstack([self.cluster_centers_, extra_centers])
         
         # Iterative optmimization
         for iteration in range(self.max_iters):
@@ -58,9 +65,8 @@ class KMeans:
             old_centers = self.cluster_centers_.copy()
             self.cluster_centers_ = self._update_centers(X, assignments)
             
-            # Check convergence
-            center_shift = np.sum(np.abs(old_centers.reshape((-1, 1)) - 
-                                         self.cluster_centers_.reshape((-1, 1))))
+            # Check convergence (using Frobenius norm)
+            center_shift = np.linalg.norm(old_centers - self.cluster_centers_)
             
             if center_shift < self.tol:
                 self.n_iter_ = iteration + 1
@@ -103,5 +109,20 @@ class KMeans:
         return np.eye(self.n_clusters)[labels]
     
     def _update_centers(self, X: np.ndarray, assignments: np.ndarray) -> np.ndarray:
-        """Update cluste centers"""
-        return (np.divide(X.T.dot(assignments), np.sum(assignments, axis=0))).T
+        """Update cluster centers based on current assignments.
+        
+        Handles empty clusters by keeping their previous centers.
+        """
+        cluster_sums = X.T.dot(assignments)  # (n_features, n_clusters)
+        cluster_counts = np.sum(assignments, axis=0)  # (n_clusters,)
+        
+        # Handle empty clusters by keeping their previous centers
+        new_centers = np.zeros((self.n_clusters, X.shape[1]))
+        for k in range(self.n_clusters):
+            if cluster_counts[k] > 0:
+                new_centers[k] = cluster_sums[:, k] / cluster_counts[k]
+            else:
+                # Keep the old center for empty clusters
+                new_centers[k] = self.cluster_centers_[k]
+        
+        return new_centers
